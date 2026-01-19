@@ -266,7 +266,8 @@ with tab3:
                     st.write(f"ELO SCORE: {home_ratings['elo']:.2f}")
                     st.write(f'TrueSkill : {home_ratings["ts_mu"]:.1f}')
                     st.write(f'Glicko Rating: {home_ratings["glicko_rating"]:.1f}')
-                    st.write(f'Form (last 5): {features['home_point_last5']:.2f} points per game')
+                    st.write(f"Form (last 5): {features['home_point_last5']:.2f} points per game")
+
                 with col2:
                     st.write(f"**{away_team}**(Away)")
                     st.write(f"ELO SCORE: {away_ratings['elo']:.2f}")
