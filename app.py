@@ -5,6 +5,9 @@ from ratings import compute_all_rating
 from visualization import plot_elo_evolution
 import joblib
 import pandas as pd
+import time
+
+
 @st.cache_resource
 def load_model():
     model=joblib.load('la_liga_model.joblib')
@@ -233,21 +236,27 @@ with tab3:
             if features is not None:
                 X_predict=pd.DataFrame([features])
 
+                #measure infernce time
+                start=time.time()
+
                 prediction=model.predict(X_predict)[0]
                 probabilities=model.predict_proba(X_predict)[0]
+                latency=time.time()-start
 
                 prob_not_home_win=probabilities[0]
                 prob_home_win=probabilities[1]
                 confidence=max(prob_home_win,prob_not_home_win)
                 st.success(f"Prediction Complete !!!!")
 
-                col1,col2,col3=st.columns(3)
+                col1,col2,col3,col4=st.columns(4)
                 with col1:
                     st.metric('Home Win Probablities',f"{prob_home_win:.2%}")
                 with col2:
                     st.metric('Not Home Win Probabilities',f"{prob_not_home_win:.2%}")
                 with col3:
                     st.metric('Model Confidence',f"{confidence:.2%}")
+                with col4:
+                    st.metric('Inference Time',f'{latency*1000:.2f}ms')
                 if prediction==1:
                     st.balloons()
                     st.success(f"### Prediction **{home_team}** will win at home!")
