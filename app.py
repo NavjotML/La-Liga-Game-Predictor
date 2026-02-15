@@ -6,6 +6,8 @@ from visualization import plot_elo_evolution
 import joblib
 import pandas as pd
 import time
+import plotly.graph_objects as go
+import plotly.express as px
 
 
 @st.cache_resource
@@ -20,50 +22,62 @@ st.title("La Liga Team Rating Analyzer")
 st.subheader("From 2012 to 2025 August")
 
 # Load data
-df = load_data()
-
-if 'FTR' in df.columns:
-  
-    df['FTR_Encoded'] = df['FTR'].map({
+@st.cache_data
+def get_preprocessed_data():
+    df=load_data()
+    if 'FTR' in df.columns:
+        df['FTR_Encoded'] = df['FTR'].map({
         'H': 2, 
         'D': 1,  
         'A': 0   
     })
-else:
+    else:
     
-    df['FTR_Encoded'] = 1  
-    df.loc[df['FTHG'] > df['FTAG'], 'FTR_Encoded'] = 2  # Home win
-    df.loc[df['FTHG'] < df['FTAG'], 'FTR_Encoded'] = 0  # Away win
+        df['FTR_Encoded'] = 1  
+        df.loc[df['FTHG'] > df['FTAG'], 'FTR_Encoded'] = 2  # Home win
+        df.loc[df['FTHG'] < df['FTAG'], 'FTR_Encoded'] = 0  # Away win
+
+    df=compute_all_rating(df)
+    return df
+
+df = get_preprocessed_data()
+
 
 # Compute ratings
-df = compute_all_rating(df)
 
-def get_latest_rating(df,team_name):
-    home_matches=df[df['HomeTeam']==team_name]
-    away_matches=df[df['AwayTeam']==team_name]
 
-    if len(home_matches)>0:
-        latest_home=home_matches.iloc[-1]
-        return {
-            'elo':latest_home['home_elo_before'],
-            'ts_mu':latest_home['ts_home_mu'],
-            'ts_sigma':latest_home['ts_home_sigma'],
-            'glicko_rating':latest_home['glicko_home_rating'],
-            'glicko_rd':latest_home['glicko_home_rd']
+def get_latest_rating(df):
+    "instead of list using dict for 0(1)"
+    ratings={}
+    for team in df['HomeTeam'].unique():
+    
+        home_matches=df[df['HomeTeam']==team]
+        away_matches=df[df['AwayTeam']==team]
 
-        }
-    elif len(away_matches)>0:
-        latest_away=away_matches.iloc[-1]
-        return {
-            'elo':latest_away['away_elo_before'],
-            'ts_mu':latest_away['ts_away_mu'],
-            'ts_sigma':latest_away['ts_away_sigma'],
-            'glicko_rating':latest_away['glicko_away_rating'],
-            'glicko_rd':latest_away['glicko_away_rd']
+        if len(home_matches)>0:
+            latest_home=home_matches.iloc[-1]
+            ratings[team]= {
+                'elo':latest_home['home_elo_before'],
+                'ts_mu':latest_home['ts_home_mu'],
+                'ts_sigma':latest_home['ts_home_sigma'],
+                'glicko_rating':latest_home['glicko_home_rating'],
+                'glicko_rd':latest_home['glicko_home_rd']
 
-        }
-    else:
-        return None
+            }
+        elif len(away_matches)>0:
+            latest_away=away_matches.iloc[-1]
+            ratings[team]= {
+                'elo':latest_away['away_elo_before'],
+                'ts_mu':latest_away['ts_away_mu'],
+                'ts_sigma':latest_away['ts_away_sigma'],
+                'glicko_rating':latest_away['glicko_away_rating'],
+                'glicko_rd':latest_away['glicko_away_rd']
+
+            }
+        
+    return ratings
+rating_lookup=get_latest_rating(df)
+
     
 def get_recent_form(df,team_name,is_home=True):
     '''CALCULATE AVEARGE POINTS FROM LAST 5 MATCHES'''
@@ -92,8 +106,8 @@ def get_recent_form(df,team_name,is_home=True):
 
 def create_features(home_team,away_team,b365h,b365d,b365a,df):
 
-    home_rating=get_latest_rating(df,home_team)
-    away_rating=get_latest_rating(df,away_team)
+    home_rating=rating_lookup.get(home_team)
+    away_rating=rating_lookup.get(away_team)
 
     if home_rating is None:
         st.error(f"Team {home_team} not found in data!")
@@ -143,9 +157,13 @@ def create_features(home_team,away_team,b365h,b365d,b365a,df):
     'form': form_diff
 }
     return features
-# CREATE TAB
-tab1,tab2,tab3=st.tabs(["OVERVIEW","EL CLASSICO","Prediction"])
+
+tab1,tab2=st.tabs(["OVERVIEW","Prediction"])
 #tab1 overview
+@st.cache_data
+def get_elo_plot(_df,teams):
+    return plot_elo_evolution(_df,teams)
+
 with tab1:
     st.header('Team Rating Evolution')
 
@@ -155,59 +173,13 @@ with tab1:
         default=['Barcelona','Real Madrid']
     )
     if teams:
-        fig=plot_elo_evolution(df,teams)
-        st.pyplot(fig)
+        fig=get_elo_plot(df,tuple(teams))
+        st.plotly_chart(fig,use_container_width=True)
     st.subheader('Top 10 ratings of team by elo score')
     top_teams=df.groupby('HomeTeam')['home_elo_after'].mean().sort_values(ascending=False).head(10)
     st.table(top_teams)
-with tab2:
-    
-    st.header('EL CLASSICO: Barcelona vs Real Madrid')
-    real="Real Madrid"
-    barca="Barcelona"
-    matches = df[
-        ((df['HomeTeam']==real) & (df['AwayTeam']==barca)) |
-        ((df['HomeTeam']==barca) & (df['AwayTeam']==real))
-    ]
-    barca_won=0
-    real_won=0
-    draw=0
-    for _ , row in matches.iterrows():
-        home=row['HomeTeam']
-        away=row['AwayTeam']
-        result=row['FTR']
-        if result=='H' and home=='Barcelona':
-            barca_won += 1
-        elif result=='A' and away=='Barcelona':
-            barca_won +=1
-        elif result=='D':
-            draw += 1
-        else:
-            real_won+=1
-    col1 , col2 , col3 , col4   = st.columns(4)
-    with col1:
-         st.metric('Barcelona Wins',barca_won)
-    with col2:
-        st.metric('Draws',draw)
-    with col3:
-        st.metric('Real Madrid Wins',real_won)
-    with col4:
-        st.metric("TOTAL CLASHES",barca_won+real_won+draw)
-    fig,ax=plt.subplots(figsize=(7,4))
-    ax.set_facecolor("#0b1c2d")
-    plt.gcf().patch.set_facecolor("#0b1c2d")
-    teams_list=['Barcelona','Real Madrid','Draws']
-    colors=['#A50044', '#808080','#FEBE10']
-    result=[barca_won,real_won,draw]
-    ax.bar(teams_list,result,color=colors) 
-    for i , value in enumerate(result):
-            ax.text(i,value+0.3,str(value),ha='center',fontsize=12,fontweight='bold')
-    ax.set_title('EL CLASSICO RESULTS (2021-2025)',fontsize=16)
-    ax.set_ylabel('Number of Matches',fontsize=12)
-    ax.spines[['top','right']].set_visible(False)
 
-    st.pyplot(fig)
-with tab3:
+with tab2:
     st.header("🔮 Predict Match Outcome")
 
     #get all teams
@@ -267,8 +239,8 @@ with tab3:
 
                 col1,col2=st.columns(2)
 
-                home_ratings=get_latest_rating(df,home_team)
-                away_ratings=get_latest_rating(df,away_team)
+                home_ratings=rating_lookup.get(home_team)
+                away_ratings=rating_lookup.get(away_team)
 
                 with col1:
                     st.write(f"**{home_team}**(Home)")
