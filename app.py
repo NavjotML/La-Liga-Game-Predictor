@@ -8,6 +8,7 @@ import pandas as pd
 import time
 import plotly.graph_objects as go
 import plotly.express as px
+from health import tracker
 
 
 @st.cache_resource
@@ -215,6 +216,10 @@ with tab2:
                 probabilities=model.predict_proba(X_predict)[0]
                 latency=time.time()-start
 
+                tracker.log_prediction(
+                    home_team,away_team,prediction,probabilities,latency,features
+                )
+
                 prob_not_home_win=probabilities[0]
                 prob_home_win=probabilities[1]
                 confidence=max(prob_home_win,prob_not_home_win)
@@ -255,4 +260,3 @@ with tab2:
                     st.write(f"TrueSkill : {away_ratings['ts_mu']:.1f}")
                     st.write(f"Glicko Rating: {away_ratings['glicko_rating']:.1f}")
                     st.write(f"Form (last 5): {features['away_point_last5']:.2f} points per game")
-
