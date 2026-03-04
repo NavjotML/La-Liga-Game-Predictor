@@ -35,4 +35,6 @@ Access at `http://localhost:8501`
 - **ROC-AUC:** 0.7133
 - **Dataset:** 2012–2025 (980+ matches)
 - **Best Season:** 77.8% (2025)
+- ![Calibration Curve](https://raw.githubusercontent.com/NavjotML/La-Liga-Game-Predictor/587c57c13f6db35b338dc3a3b1ba0d44994c3679/Screenshot%202026-03-04%20202901.png)
+
 
