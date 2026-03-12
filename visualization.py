@@ -4,22 +4,22 @@ import pandas as pd
 def plot_elo_evolution(df, teams):
     fig = go.Figure()
     
-    # Define colors for different teams
+   
     colors = ['#A50044', '#FEBE10', '#00529F', '#6CABDD', '#EE7F00', '#004D98', '#DA291C', '#FDB913']
     
     for idx, team in enumerate(teams):
-        # Home matches
+       
         home = df[df['HomeTeam'] == team][['Date', 'home_elo_after']].copy()
         home.columns = ['Date', 'elo']
         
-        # Away matches
+     
         away = df[df['AwayTeam'] == team][['Date', 'away_elo_after']].copy()
         away.columns = ['Date', 'elo']
         
-        # Combine and sort chronologically
+       
         team_data = pd.concat([home, away]).sort_values('Date').reset_index(drop=True)
         
-        # Add trace for this team
+      
         fig.add_trace(go.Scatter(
             x=list(range(1, len(team_data) + 1)),
             y=team_data['elo'].values,
