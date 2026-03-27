@@ -7,3 +7,5 @@ streamlit>=1.28.0
 trueskill==0.4.5
 plotly
 glicko2
+supabase
+python-dotenv
