@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from collections import defaultdict
+from database import save_prediction,save_error
 
 class ModelHealthTracker:
     def __init__(self):
@@ -26,8 +27,16 @@ class ModelHealthTracker:
         self.predictions.append(log_entry)
 
         #save
-        with open('model_predictions.json','a') as f:
-            f.write(json.dumps(log_entry)+ '\n')
+        try:
+            save_prediction(log_entry)
+        except Exception as e:
+            self.errors.append(str(e))
+
+            save_error({
+                "timestamp":datetime.now().isoformat(),
+                "error_type":"prediction_error",
+                "message":str(e)
+            })
 
     def get_health_metrics(self):
         """calculate health metrics"""
