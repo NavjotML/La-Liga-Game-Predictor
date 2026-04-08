@@ -10,7 +10,12 @@ import plotly.graph_objects as go
 import plotly.express as px
 from health import tracker
 
+from dotenv import load_dotenv
+load_dotenv()  # add this at the top of database.py or app.py
 
+import os
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 @st.cache_resource
 def load_model():
     model=joblib.load('la_liga_model.joblib')
@@ -181,7 +186,7 @@ with tab1:
     st.table(top_teams)
 
 with tab2:
-    st.header("🔮 Predict Match Outcome")
+    st.header("Predict Match Outcome")
 
     #get all teams
     all_teams=sorted(df['HomeTeam'].unique())
@@ -223,19 +228,20 @@ with tab2:
                 prob_not_home_win=probabilities[0]
                 prob_home_win=probabilities[1]
                 confidence=max(prob_home_win,prob_not_home_win)
+                confident_in="Home Win" if prob_home_win>prob_not_home_win else "Away Win/Draw"
                 st.success(f"Prediction Complete !!!!")
 
                 col1,col2,col3,col4=st.columns(4)
                 with col1:
                     st.metric('Home Win Probablities',f"{prob_home_win:.2%}")
                 with col2:
-                    st.metric('Not Home Win Probabilities',f"{prob_not_home_win:.2%}")
+                    st.metric('Away Win Probabilities',f"{prob_not_home_win:.2%}")
                 with col3:
-                    st.metric('Model Confidence',f"{confidence:.2%}")
+                    st.metric('Model Confidence',f"{confidence:.2%}",
+                              delta=f'Favours {confident_in}')
                 with col4:
                     st.metric('Inference Time',f'{latency*1000:.2f}ms')
                 if prediction==1:
-                    st.balloons()
                     st.success(f"### Prediction **{home_team}** will win at home!")
                 else:
                     st.info(f"### Prediction **{home_team}** will NOT win at home!")
